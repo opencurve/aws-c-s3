@@ -141,6 +141,10 @@ uint32_t aws_s3_client_get_max_active_connections(
     struct aws_s3_meta_request *meta_request) {
     AWS_PRECONDITION(client);
 
+    if (client->max_active_connections_override > 0) {
+        return client->max_active_connections_override;
+    }
+
     uint32_t num_connections_per_vip = g_max_num_connections_per_vip;
     uint32_t num_vips = client->ideal_vip_count;
 
@@ -166,11 +170,6 @@ uint32_t aws_s3_client_get_max_active_connections(
     }
 
     uint32_t max_active_connections = num_vips * num_connections_per_vip;
-
-    if (client->max_active_connections_override > 0 &&
-        client->max_active_connections_override < max_active_connections) {
-        max_active_connections = client->max_active_connections_override;
-    }
 
     return max_active_connections;
 }
