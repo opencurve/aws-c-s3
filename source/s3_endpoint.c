@@ -70,27 +70,29 @@ struct aws_s3_endpoint *aws_s3_endpoint_new(
     endpoint->allocator = allocator;
     endpoint->host_name = options->host_name;
 
-    struct aws_host_resolution_config host_resolver_config;
-    AWS_ZERO_STRUCT(host_resolver_config);
-    host_resolver_config.impl = aws_default_dns_resolve;
-    host_resolver_config.max_ttl = options->dns_host_address_ttl_seconds;
-    host_resolver_config.impl_data = NULL;
+    /* skip dns resolution related logic
+        struct aws_host_resolution_config host_resolver_config;
+        AWS_ZERO_STRUCT(host_resolver_config);
+        host_resolver_config.impl = aws_default_dns_resolve;
+        host_resolver_config.max_ttl = options->dns_host_address_ttl_seconds;
+        host_resolver_config.impl_data = NULL;
 
-    if (aws_host_resolver_resolve_host(
-            options->client_bootstrap->host_resolver,
-            endpoint->host_name,
-            s_s3_endpoint_on_host_resolver_address_resolved,
-            &host_resolver_config,
-            NULL)) {
+        if (aws_host_resolver_resolve_host(
+                options->client_bootstrap->host_resolver,
+                endpoint->host_name,
+                s_s3_endpoint_on_host_resolver_address_resolved,
+                &host_resolver_config,
+                NULL)) {
 
-        AWS_LOGF_ERROR(
-            AWS_LS_S3_ENDPOINT,
-            "id=%p: Error trying to resolve host for endpoint %s",
-            (void *)endpoint,
-            (const char *)endpoint->host_name->bytes);
+            AWS_LOGF_ERROR(
+                AWS_LS_S3_ENDPOINT,
+                "id=%p: Error trying to resolve host for endpoint %s",
+                (void *)endpoint,
+                (const char *)endpoint->host_name->bytes);
 
-        goto error_cleanup;
-    }
+            goto error_cleanup;
+        }
+    */
 
     endpoint->http_connection_manager = s_s3_endpoint_create_http_connection_manager(
         endpoint,
