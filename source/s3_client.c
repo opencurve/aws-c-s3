@@ -34,6 +34,7 @@
 #include <aws/s3/private/s3_copy_object.h>
 #include <inttypes.h>
 #include <math.h>
+#include <errno.h>
 
 #if _MSC_VER
 #    pragma warning(disable : 4232) /* function pointer to dll symbol */
@@ -676,8 +677,43 @@ struct aws_s3_meta_request *aws_s3_client_make_meta_request(
         }
 
         if (was_created) {
+            // try to support "ip:port", "ip", "hostname:port", "hostname" format
+            struct aws_array_list raw_endpoint_split;
+            AWS_ZERO_STRUCT(raw_endpoint_split);
+            struct aws_byte_cursor raw_endpoint = aws_byte_cursor_from_string(endpoint_host_name);
+            if (aws_array_list_init_dynamic(
+                    &raw_endpoint_split, client->allocator, 2, sizeof(struct aws_byte_cursor))) {
+                error_occurred = true;
+                goto unlock;
+            }
+            if (aws_byte_cursor_split_on_char(&raw_endpoint, ':', &raw_endpoint_split)) {
+                error_occurred = true;
+                goto unlock;
+            }
+            struct aws_byte_cursor raw_host_name;
+            AWS_ZERO_STRUCT(raw_host_name);
+            if (aws_array_list_get_at(&raw_endpoint_split, &raw_host_name, 0)) {
+                error_occurred = true;
+                goto unlock;
+            }
+            struct aws_byte_cursor raw_port;
+            if (aws_array_list_length(&raw_endpoint_split) == 2) {
+                // seems we have port?
+                AWS_ZERO_STRUCT(raw_port);
+                if (aws_array_list_get_at(&raw_endpoint_split, &raw_port, 1)) {
+                    error_occurred = true;
+                    goto unlock;
+                }
+                errno = 0;
+                port = (uint16_t)strtoul((const char *)(raw_port.ptr), NULL, 0);
+                if (errno != 0) {
+                    error_occurred = true;
+                    goto unlock;
+                }
+            }
+
             struct aws_s3_endpoint_options endpoint_options = {
-                .host_name = endpoint_host_name,
+                .host_name = aws_string_new_from_cursor(client->allocator, &raw_host_name),
                 .shutdown_callback = client->vtable->endpoint_shutdown_callback,
                 .client_bootstrap = client->client_bootstrap,
                 .tls_connection_options = is_https ? client->tls_connection_options : NULL,
