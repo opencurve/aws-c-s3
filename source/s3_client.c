@@ -702,22 +702,27 @@ struct aws_s3_meta_request *aws_s3_client_make_meta_request(
                 goto unlock;
             }
         }
+        aws_array_list_clean_up(&raw_endpoint_split);
 
         int was_created = 0;
 
+        struct aws_string *raw_host_name_str = aws_string_new_from_cursor(client->allocator, &raw_host_name);
+
         if (aws_hash_table_create(
                 &client->synced_data.endpoints,
-                aws_string_new_from_cursor(client->allocator, &raw_host_name),
+                raw_host_name_str,
                 &endpoint_hash_element,
                 &was_created)) {
             error_occurred = true;
+            aws_string_destroy(raw_host_name_str);
+            raw_host_name_str = NULL;
             goto unlock;
         }
 
         if (was_created) {
 
             struct aws_s3_endpoint_options endpoint_options = {
-                .host_name = aws_string_new_from_cursor(client->allocator, &raw_host_name),
+                .host_name = raw_host_name_str,
                 .shutdown_callback = client->vtable->endpoint_shutdown_callback,
                 .client_bootstrap = client->client_bootstrap,
                 .tls_connection_options = is_https ? client->tls_connection_options : NULL,
@@ -730,7 +735,7 @@ struct aws_s3_meta_request *aws_s3_client_make_meta_request(
             endpoint = aws_s3_endpoint_new(client->allocator, &endpoint_options);
 
             if (endpoint == NULL) {
-                aws_hash_table_remove(&client->synced_data.endpoints, endpoint_host_name, NULL, NULL);
+                aws_hash_table_remove(&client->synced_data.endpoints, raw_host_name_str, NULL, NULL);
                 error_occurred = true;
                 goto unlock;
             }
@@ -739,10 +744,9 @@ struct aws_s3_meta_request *aws_s3_client_make_meta_request(
             ++client->synced_data.num_endpoints_allocated;
         } else {
             endpoint = aws_s3_endpoint_acquire(endpoint_hash_element->value);
-
-            aws_string_destroy(endpoint_host_name);
-            endpoint_host_name = NULL;
         }
+        aws_string_destroy(endpoint_host_name);
+        endpoint_host_name = NULL;
 
         meta_request->endpoint = endpoint;
 
