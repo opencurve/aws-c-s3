@@ -744,6 +744,8 @@ struct aws_s3_meta_request *aws_s3_client_make_meta_request(
             ++client->synced_data.num_endpoints_allocated;
         } else {
             endpoint = aws_s3_endpoint_acquire(endpoint_hash_element->value);
+            aws_string_destroy(raw_host_name_str);
+            raw_host_name_str = NULL;
         }
         aws_string_destroy(endpoint_host_name);
         endpoint_host_name = NULL;
