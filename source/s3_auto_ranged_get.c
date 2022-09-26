@@ -318,6 +318,7 @@ static int s_s3_auto_ranged_get_prepare_request(
             /* A head object will be a copy of the original headers but with a HEAD request method. */
             message = aws_s3_message_util_copy_http_message_no_body(
                 meta_request->allocator, meta_request->initial_request_message, NULL, 0);
+            aws_http_message_set_request_method(message, g_head_method);
             break;
         case AWS_S3_AUTO_RANGE_GET_REQUEST_TYPE_PART:
             message = aws_s3_ranged_get_object_message_new(
@@ -425,9 +426,13 @@ static int s_discover_object_range_and_content_length(
                 break;
             }
 
+            // for compatibility reason, we only use content-length
+            object_range_end = total_content_length - 1;
+
             /* if the inital message had a ranged header, there should also be a Content-Range header that specifies the
              * object range and total object size. Otherwise the size and range should be equal to the
              * total_content_length. */
+            /*
             if (!auto_ranged_get->initial_message_has_range_header) {
                 object_range_end = total_content_length - 1;
             } else if (aws_s3_parse_content_range_response_header(
@@ -444,6 +449,7 @@ static int s_discover_object_range_and_content_length(
                     (void *)request);
                 break;
             }
+            */
 
             result = AWS_OP_SUCCESS;
             break;
